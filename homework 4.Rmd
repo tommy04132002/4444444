@@ -1,0 +1,100 @@
+---
+title: "Homework 4"
+output: html_document
+date: "2024-12-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data = data <- read.csv("https://raw.githubusercontent.com/tommy04132002/33333/main/ObesityDataSet_raw_and_data_sinthetic.csv")
+head(data)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(caret)
+data_numeric = data
+for (col in names(data_numeric)) {
+  if (class(data_numeric[[col]]) %in% c("character", "factor")) {
+    data_numeric[[col]] = as.numeric(as.factor(data_numeric[[col]]))
+  }
+}
+preproc_values = preProcess(data_numeric, method = c("center", "scale"))
+data_scaled = predict(preproc_values, data_numeric)
+
+pca_results = prcomp(data_scaled, scale. = TRUE)
+summary(pca_results)
+pca_loadings = as.data.frame(pca_results$rotation)
+pca_loadings$Variable = rownames(pca_loadings) 
+
+ggplot() +
+  geom_segment(data = pca_loadings, aes(x = 0, y = 0, xend = PC1 * 2, yend = PC2 * 2),
+               arrow = arrow(length = unit(0.2, "cm"), type = "closed"),
+               size = 0.7, color = "black") +
+  geom_text(data = pca_loadings, aes(x = PC1 * 2, y = PC2 * 2, label = Variable),
+            size = 4, vjust = -0.5, hjust = 0.5, color = "blue") +
+  theme_minimal() +
+  labs(title = "PCA Biplot with Arrows Only",
+       x = "Principal Component 1 (PC1)",
+       y = "Principal Component 2 (PC2)") +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10)
+  )
+```
+
+
+```{r}
+pca_scores = as.data.frame(pca_results$x)  
+pca_loadings = as.data.frame(pca_results$rotation) 
+pca_loadings$Variable = rownames(pca_loadings)
+groups = data$NObeyesdad
+pca_loadings = pca_loadings[abs(pca_loadings$PC1) > 0.5 | abs(pca_loadings$PC2) > 0.5, ]
+
+ggplot() +
+  geom_point(data = pca_scores, aes(x = PC1, y = PC2, col = groups), alpha = 0.6, size = 2) +
+  geom_segment(data = pca_loadings, aes(x = 0, y = 0, xend = PC1 * 2, yend = PC2 * 2),
+               arrow = arrow(length = unit(0.2, "cm"), type = "closed"), color = "black", size = 0.7) +
+  geom_text(data = pca_loadings, aes(x = PC1 * 2, y = PC2 * 2, label = Variable),
+            size = 4, vjust = -0.5, hjust = 0.5, color = "black") +
+  scale_color_manual(values = rainbow(length(unique(groups)))) +
+  labs(title = "PCA Biplot", x = "PC1", y = "PC2", color = "Groups") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    panel.grid = element_line(size = 0.5, linetype = "dotted")
+  )
+```
+
+```{r}
+pca_scores = as.data.frame(pca_results$x)
+
+set.seed(42)
+kmeans_result = kmeans(pca_scores[, 1:2], centers = 4, nstart = 25)
+pca_scores$Cluster = as.factor(kmeans_result$cluster)
+
+ggplot(pca_scores, aes(x = PC1, y = PC2, color = Cluster)) +
+  geom_point(alpha = 0.6, size = 2) +
+  theme_minimal() +
+  labs(title = "K-means Clustering on PCA Results",
+       x = "Principal Component 1",
+       y = "Principal Component 2",
+       color = "Cluster") +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        axis.title = element_text(size = 12, face = "bold"),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10)) +
+  scale_color_brewer(palette = "Set1")
+```
+
+
+
